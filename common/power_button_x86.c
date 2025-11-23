@@ -430,7 +430,12 @@ DECLARE_HOOK(HOOK_INIT, powerbtn_x86_init, HOOK_PRIO_DEFAULT);
 static void powerbtn_x86_lid_change(void)
 {
 	/* If chipset is off, pulse the power button on lid open to wake it. */
-	if (lid_is_open() && chipset_in_state(CHIPSET_STATE_ANY_OFF))
+	if (lid_is_open() &&
+#ifdef CONFIG_LID_POWER_EVENTS
+	    /* Pulse only if lid power event config allows it. */
+	    !lidpe_are_flags_set(EC_LID_POWER_EVENTS_NO_OPEN_AUTO_ON) &&
+#endif
+	    chipset_in_state(CHIPSET_STATE_ANY_OFF))
 		power_button_pch_pulse();
 }
 DECLARE_HOOK(HOOK_LID_CHANGE, powerbtn_x86_lid_change, HOOK_PRIO_DEFAULT);

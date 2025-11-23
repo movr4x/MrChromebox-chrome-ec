@@ -48,6 +48,8 @@ static struct option long_opts[] = {
 
 const char help_str[] =
 	"Commands:\n"
+	"  afterg3state [off|on|previous]\n"
+	"      Set and/or get After G3 State value\n"
 	"  apreset\n"
 	"      Issue AP reset\n"
 	"  autofanctrl <on>\n"
@@ -140,6 +142,8 @@ const char help_str[] =
 	"      Checks for basic communication with EC\n"
 	"  hibdelay [sec]\n"
 	"      Set the delay before going into hibernation\n"
+	"  hibecons4s5 [0|1]\n"
+	"      Set and/or get EC hibernation policy on S4/S5\n"
 	"  hostsleepstate\n"
 	"      Report host sleep state to the EC\n"
 	"  kbpress\n"
@@ -162,6 +166,8 @@ const char help_str[] =
 	"      Test low-level key scanning\n"
 	"  led <name> <query | auto | off | <color> | <color>=<value>...>\n"
 	"      Set the color of an LED or query brightness range\n"
+	"  lidpowerevents [default] [EVENT_FLAG_NAME=0|1 [...]]\n"
+	"      Set and/or get Lid Power Events flags\n"
 	"  lightbar [CMDS]\n"
 	"      Various lightbar control commands\n"
 	"  motionsense [CMDS]\n"
@@ -231,6 +237,8 @@ const char help_str[] =
 	"      Run RW signature verification and get status.\n"
 	"  sertest\n"
 	"      Serial output test for COM2\n"
+	"  sppowerconf [clear]\n"
+	"      Clear and/or get scratchpad power config data\n"
 	"  switches\n"
 	"      Prints current EC switch positions\n"
 	"  temps <sensorid>\n"
@@ -1220,6 +1228,280 @@ int cmd_rwsig_action(int argc, char *argv[])
 int cmd_apreset(int argc, char *argv[])
 {
 	return ec_command(EC_CMD_AP_RESET, 0, NULL, 0, NULL, 0);
+}
+
+/* Order should match enum ec_after_g3_state, starting from value 1.
+ * Special values are excluded.
+ */
+static const char *ag3s_name_table[] = { "off", "on", "previous" };
+
+static inline const char *ag3s_get_state_name(enum ec_after_g3_state state)
+{
+	return ((state >= EC_AFTER_G3_STATE_OFF &&
+	         state <= EC_AFTER_G3_STATE_PREVIOUS) ?
+			ag3s_name_table[state - 1] : NULL);
+}
+
+static enum ec_after_g3_state ag3s_find_state_by_name(const char *name)
+{
+	int i, len;
+	for (i = 0, len = ARRAY_SIZE(ag3s_name_table); i < len; ++i) {
+		if (!strcasecmp(name, ag3s_name_table[i]))
+			return i + 1;
+	}
+	return EC_AFTER_G3_STATE_UNKNOWN;
+}
+
+int cmd_afterg3state(int argc, char *argv[])
+{
+	static const char *ag3s_title = "After G3 State";
+
+	struct ec_params_after_g3_state p;
+	struct ec_response_after_g3_state r;
+	const char *state_name;
+	int rv;
+
+	if (argc < 2) {
+		p.set_state = (uint8_t)EC_AFTER_G3_STATE_GET;
+	} else if (argc == 2) {
+		enum ec_after_g3_state state = ag3s_find_state_by_name(argv[1]);
+		if (state == EC_AFTER_G3_STATE_UNKNOWN) {
+			fprintf(stderr, "%s: Invalid state '%s'\n", ag3s_title,
+					argv[1]);
+			return -1;
+		}
+		p.set_state = (uint8_t)state;
+	} else {
+		fprintf(stderr, "%s: Too many args\n", ag3s_title);
+		return -1;
+	}
+
+	rv = ec_command(EC_CMD_AFTER_G3_STATE, 0, &p, sizeof(p), &r, sizeof(r));
+	if (rv < 0 || r.cur_state == EC_AFTER_G3_STATE_ERROR)
+		return -1;
+
+	state_name = ag3s_get_state_name(r.cur_state);
+	if (!state_name)
+		return -1;
+
+	printf("%s: %s\n", ag3s_title, state_name);
+
+	return 0;
+}
+
+int cmd_hibecons4s5(int argc, char *argv[])
+{
+	static const char *hibec_title = "Hibernate EC On S4/S5";
+
+	struct ec_params_hib_ec_on_s4s5 p;
+	struct ec_response_hib_ec_on_s4s5 r;
+	int enabled;
+	int rv;
+
+	if (argc < 2) {
+		p.set_enabled = (int8_t)-1;
+	} else if (argc == 2) {
+		if (!argv[1])
+			return -1;
+
+		switch (*argv[1]) {
+		case '0':
+			enabled = 0;
+			break;
+		case '1':
+			enabled = 1;
+			break;
+		default:
+			fprintf(stderr, "%s: Invalid value '%s'\n", hibec_title,
+					argv[1]);
+			return -1;
+		}
+
+		p.set_enabled = (int8_t)enabled;
+	} else {
+		fprintf(stderr, "%s: Too many args\n", hibec_title);
+		return -1;
+	}
+
+	rv = ec_command(EC_CMD_HIB_EC_ON_S4S5, 0, &p, sizeof(p), &r, sizeof(r));
+	if (rv < 0 || r.cur_enabled < 0)
+		return -1;
+
+	printf("%s: %d\n", hibec_title, r.cur_enabled);
+
+	return 0;
+}
+
+/* Order should match enum ec_lid_power_events_flags bit positions, starting
+ * from bit 0.
+ * Special flags are excluded.
+ */
+static const char *lidpe_flags_name_table[] = {
+	"no_open_auto_on",
+	"no_closed_ignore_pb"
+};
+
+static inline uint32_t lidpe_filter_valid_flags(uint32_t lpe_flags)
+{
+	return lpe_flags & ((1 << ARRAY_SIZE(lidpe_flags_name_table)) - 1);
+}
+
+static void lidpe_print_flags(uint32_t lpe_flags)
+{
+	int i, len;
+
+	for (i = 0, len = ARRAY_SIZE(lidpe_flags_name_table); i < len; ++i) {
+		if (i)
+			printf(", ");
+
+		printf("%s=%d", lidpe_flags_name_table[i],
+				!!(lpe_flags & (1 << i)));
+	}
+
+	printf("\n");
+}
+
+/* Tries to parse matching event bit, and value, from 'EVENT_FLAG_NAME=0|1'. */
+static int lidpe_try_parse_bit_and_value_from_arg(const char *arg, int *out_bit,
+		int *out_value)
+{
+	const char *arg_i = arg;
+	size_t flag_name_len = 0;
+	int value;
+	int i, len;
+
+	if (!arg || !out_bit || !out_value)
+		return 0;
+
+	/* Process event flag name, and advance past '='. */
+	for (;;) {
+		switch (*arg_i++) {
+		case '\0':
+			/* Missing '='. */
+			return 0;
+		case '=':
+			/* Event flag name cannot be empty. */
+			if (!flag_name_len)
+				return 0;
+			break;
+		default:
+			++flag_name_len;
+			continue;
+		}
+		break;
+	}
+
+	/* Process value, and advance to the next char. */
+	switch (*arg_i++) {
+	case '0':
+		value = 0;
+		break;
+	case '1':
+		value = 1;
+		break;
+	default:
+		return 0;
+	}
+
+	/* Value should be always last. */
+	if (*arg_i != '\0')
+		return 0;
+
+	/* Try to find matching bit by event flag name. */
+	for (i = 0, len = ARRAY_SIZE(lidpe_flags_name_table); i < len; ++i) {
+		if (strncasecmp(arg, lidpe_flags_name_table[i], flag_name_len))
+			continue;
+
+		/* Everything parsed successfully. */
+		*out_bit = i;
+		*out_value = value;
+		return 1;
+	}
+
+	/* Bit was not found. */
+	return 0;
+}
+
+int cmd_lidpowerevents(int argc, char *argv[])
+{
+	static const char *lidpe_title = "Lid Power Events";
+
+	struct ec_params_lid_power_events p;
+	struct ec_response_lid_power_events r;
+	int rv;
+
+	if (argc < 2) {
+		p.set_lpe_flags = EC_LID_POWER_EVENTS_GET;
+	} else {
+		uint32_t lpe_flags;
+		int bit, value;
+		int i = 1;
+
+		if (!strcasecmp(argv[i], "default")) {
+			lpe_flags = EC_LID_POWER_EVENTS_DEFAULT;
+			++i;
+		} else {
+			lpe_flags = 0;
+		}
+
+		for (; i < argc; ++i) {
+			if (!lidpe_try_parse_bit_and_value_from_arg(argv[i],
+					&bit, &value)) {
+				fprintf(stderr, "%s: Invalid arg '%s'\n",
+						lidpe_title, argv[i]);
+				return -1;
+			}
+
+			if (value)
+				lpe_flags |= 1 << bit;
+			else
+				lpe_flags |= 1 << (bit + 8);
+		}
+
+		p.set_lpe_flags = lpe_flags;
+	}
+
+	rv = ec_command(EC_CMD_LID_POWER_EVENTS, 0, &p, sizeof(p), &r,
+			sizeof(r));
+	if (rv < 0 || (r.cur_lpe_flags & EC_LID_POWER_EVENTS_ERROR))
+		return -1;
+
+	printf("%s: ", lidpe_title);
+	lidpe_print_flags(lidpe_filter_valid_flags(r.cur_lpe_flags));
+
+	return 0;
+}
+
+int cmd_sppowerconf(int argc, char *argv[])
+{
+	static const char *sp_power_conf_title = "Scratchpad Power Config";
+
+	struct ec_params_sp_power_conf p;
+	struct ec_response_sp_power_conf r;
+	int rv;
+
+	if (argc < 2) {
+		p.clear = (uint8_t)0;
+	} else if (argc == 2) {
+		if (strcasecmp(argv[1], "clear")) {
+			fprintf(stderr, "%s: Invalid arg '%s'\n",
+					sp_power_conf_title, argv[1]);
+			return -1;
+		}
+		p.clear = (uint8_t)1;
+	} else {
+		fprintf(stderr, "%s: Too many args\n", sp_power_conf_title);
+		return -1;
+	}
+
+	rv = ec_command(EC_CMD_SCRATCHPAD_POWER_CONF, 0, &p, sizeof(p), &r,
+			sizeof(r));
+	if (rv < 0 || (p.clear && r.cur_data))
+		return -1;
+
+	printf("%s: 0x%02x\n", sp_power_conf_title, r.cur_data);
+
+	return 0;
 }
 
 static void *fp_download_frame(struct ec_response_fp_info *info, int all)
@@ -8050,6 +8332,7 @@ int cmd_cec(int argc, char *argv[])
 
 /* NULL-terminated list of commands */
 const struct command commands[] = {
+	{"afterg3state", cmd_afterg3state},
 	{"apreset", cmd_apreset},
 	{"autofanctrl", cmd_thermal_auto_fan_ctrl},
 	{"backlight", cmd_lcd_backlight},
@@ -8097,6 +8380,7 @@ const struct command commands[] = {
 	{"hangdetect", cmd_hang_detect},
 	{"hello", cmd_hello},
 	{"hibdelay", cmd_hibdelay},
+	{"hibecons4s5", cmd_hibecons4s5},
 	{"hostsleepstate", cmd_hostsleepstate},
 	{"kbpress", cmd_kbpress},
 	{"i2cprotect", cmd_i2c_protect},
@@ -8106,6 +8390,7 @@ const struct command commands[] = {
 	{"infopddev", cmd_pd_device_info},
 	{"inventory", cmd_inventory},
 	{"led", cmd_led},
+	{"lidpowerevents", cmd_lidpowerevents},
 	{"lightbar", cmd_lightbar},
 	{"keyconfig", cmd_keyconfig},
 	{"keyscan", cmd_keyscan},
@@ -8143,6 +8428,7 @@ const struct command commands[] = {
 	{"rwsigaction", cmd_rwsig_action},
 	{"rwsigstatus", cmd_rwsig_status},
 	{"sertest", cmd_serial_test},
+	{"sppowerconf", cmd_sppowerconf},
 	{"port80flood", cmd_port_80_flood},
 	{"switches", cmd_switches},
 	{"temps", cmd_temperature},

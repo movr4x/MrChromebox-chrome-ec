@@ -20,6 +20,7 @@
 #include "timer.h"
 #include "util.h"
 #include "espi.h"
+#include "power_button.h"
 
 /* Console output macros */
 #define CPUTS(outstr) cputs(CC_CHIPSET, outstr)
@@ -262,6 +263,12 @@ static enum power_state power_common_state(enum power_state state)
 		}
 
 		in_want = 0;
+
+#ifdef CONFIG_HIB_EC_ON_S4S5
+		/* Device is off now, request EC hibernation. */
+		hibec_request_hibernation_on_s4s5();
+#endif
+
 #ifdef CONFIG_HIBERNATE
 		if (extpower_is_present())
 			task_wait_event(-1);

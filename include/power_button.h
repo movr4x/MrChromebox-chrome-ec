@@ -17,6 +17,20 @@
  */
 int power_button_is_pressed(void);
 
+#ifdef CONFIG_HIB_EC_ON_S4S5
+/* Request EC hibernation on S4/S5. If hibernation fails due to not meeting all
+ * required conditions, then pending request will remain, and attempts to
+ * hibernate will continue until: hibernation succeeds, device is powered on,
+ * or hibernation is disabled.
+ */
+void hibec_request_hibernation_on_s4s5(void);
+#endif
+
+#ifdef CONFIG_LID_POWER_EVENTS
+/* Check which regular flags from enum ec_lid_power_events_flags are set. */
+int lidpe_are_flags_set(uint32_t lpe_flags);
+#endif
+
 /**
  * Wait for the power button to be released
  *
