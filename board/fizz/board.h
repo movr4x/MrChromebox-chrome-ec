@@ -66,6 +66,21 @@
 /* EC console commands */
 #define CONFIG_CMD_BUTTON
 
+/* FIZZ uses npcx chip, which allows to utilize all 32-bits for scratchpad. */
+#define CONFIG_SCRATCHPAD_POWER_CONF
+/* Config data will be located in the last byte (4th byte). */
+#define CONFIG_SCRATCHPAD_POWER_CONF_POS 24
+/* Enable After G3 State. */
+#define CONFIG_AFTER_G3_STATE
+/* RO for FIZZ only uses AP_OFF for OFF. */
+#define CONFIG_AFTER_G3_STATE_USE_AP_OFF_FOR_OFF
+/* RO for FIZZ is bugged when jumping from RW with bbram reset flags set. */
+#define CONFIG_AFTER_G3_STATE_SYSJUMP_BBRAM_BUGFIX
+/* Enable Lid Power Events overrides. */
+#define CONFIG_LID_POWER_EVENTS
+/* Enable EC hibernation on S4/S5. */
+#define CONFIG_HIB_EC_ON_S4S5
+
 /* SOC */
 #define CONFIG_CHIPSET_SKYLAKE
 #define CONFIG_CHIPSET_HAS_PLATFORM_PMIC_RESET
