@@ -467,7 +467,7 @@ static void hibec_try_to_hibernate(void)
 		fail_reason = "No request";
 	} else if (!chipset_in_state(CHIPSET_STATE_ANY_OFF)) {
 		fail_reason = "Device not off";
-	} else if (extpower_is_present()) {
+	} else if (!extpower_is_present()) {
 		fail_reason = "External power";
 	} else {
 		CPRINTS("%s: Forcing EC to hibernate", hibec_title);
