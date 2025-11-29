@@ -692,7 +692,7 @@ static void lidpe_try_restore_conf(void)
 	}
 }
 /* Restoring Lid Power Events config data before lid is initialized. */
-DECLARE_HOOK(HOOK_INIT, lidpe_try_restore_conf, HOOK_PRIO_INIT_LID - 1);
+DECLARE_HOOK(HOOK_INIT, lidpe_try_restore_conf, HOOK_PRIO_INIT_LID-1);
 
 static inline uint32_t sp_get_power_conf_data_lidpe(void)
 {
@@ -1210,7 +1210,7 @@ static inline int ag3s_are_any_non_off_bbram_reset_flags_set(void)
  * could cause issues.
  */
 enum ag3s_sync_hook {
-	/* HOOK_INIT with HOOK_PRIO_DEFAULT - 1.
+	/* HOOK_INIT with HOOK_PRIO_DEFAULT-1.
 	 *
 	 * Called before power button initial state is configured (on HOOK_INIT
 	 * with HOOK_PRIO_DEFAULT). Changing OFF system reset flags here can
@@ -1218,7 +1218,7 @@ enum ag3s_sync_hook {
 	 * power on, or prevent auto power on.
 	 */
 	AG3S_SYNC_HOOK_INIT_BEFORE_PB_ISTATE = 1,
-	/* HOOK_INIT with HOOK_PRIO_DEFAULT + 1.
+	/* HOOK_INIT with HOOK_PRIO_DEFAULT+1.
 	 *
 	 * Called after power button initial state is configured.
 	 *
@@ -1236,7 +1236,7 @@ enum ag3s_sync_hook {
 	 * flags can be set based on after G3 behavior.
 	 */
 	AG3S_SYNC_HOOK_CHIPSET_STARTUP,
-	/* HOOK_CHIPSET_SHUTDOWN with HOOK_PRIO_DEFAULT - 1.
+	/* HOOK_CHIPSET_SHUTDOWN with HOOK_PRIO_DEFAULT-1.
 	 *
 	 * Called when chipset is shutting down. Priority is slightly higher
 	 * than handle_pending_reboot() (HOOK_PRIO_DEFAULT).
@@ -1289,13 +1289,13 @@ static void ag3s_sync_on_hook(enum ag3s_sync_hook sync_hook);
 
 /* Syncing on all non-special values in enum ag3s_sync_hook. */
 AG3S_SYNC_ON_HOOK(AG3S_SYNC_HOOK_INIT_BEFORE_PB_ISTATE, HOOK_INIT,
-		HOOK_PRIO_DEFAULT - 1);
+		HOOK_PRIO_DEFAULT-1);
 AG3S_SYNC_ON_HOOK(AG3S_SYNC_HOOK_INIT_AFTER_PB_ISTATE, HOOK_INIT,
-		HOOK_PRIO_DEFAULT + 1);
+		HOOK_PRIO_DEFAULT+1);
 AG3S_SYNC_ON_HOOK(AG3S_SYNC_HOOK_CHIPSET_STARTUP, HOOK_CHIPSET_STARTUP,
 		HOOK_PRIO_DEFAULT);
 AG3S_SYNC_ON_HOOK(AG3S_SYNC_HOOK_CHIPSET_SHUTDOWN, HOOK_CHIPSET_SHUTDOWN,
-		HOOK_PRIO_DEFAULT - 1);
+		HOOK_PRIO_DEFAULT-1);
 #ifdef CONFIG_AFTER_G3_STATE_SYSJUMP_BBRAM_BUGFIX
 AG3S_SYNC_ON_HOOK(AG3S_SYNC_HOOK_SYSJUMP, HOOK_SYSJUMP, HOOK_PRIO_LAST);
 #endif
