@@ -1325,9 +1325,11 @@ static void ag3s_sync_on_hook(enum ag3s_sync_hook sync_hook)
 			chipset_in_state(CHIPSET_STATE_ANY_OFF));
 	int rfo_flags = 0;
 
+#ifdef CONFIG_SCRATCHPAD_POWER_CONF
 	/* Restoring conf on the earliest hook. */
 	if (sync_hook == AG3S_SYNC_HOOK_INIT_BEFORE_PB_ISTATE)
 		ag3s_try_restore_conf();
+#endif
 
 	state = ag3s_get_state();
 	state_name = ag3s_get_state_name(state);
