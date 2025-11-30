@@ -901,19 +901,14 @@ DECLARE_CONSOLE_COMMAND(lidpowerevents, command_lid_power_events,
  * #define CONFIG_AFTER_G3_STATE
  *
  *==========
- *== Explicitly use AP_OFF and/or AP_IDLE for OFF flag. This flag must be
- *== supported by RW, and by RO if using unmodified RO (no auto jump RO->RW at
- *== EC boot due to disabled HW-WP and/or failed RW signature verification).
+ *== Use RESET_FLAG_AP_OFF/EC_RESET_FLAG_AP_OFF as OFF flag, instead of using
+ *== EC_RESET_FLAG_AP_IDLE as OFF flag.
  *==
- *== Not specifying will fallback to using all auto-detected OFF flags. This way
- *== one should be always guaranteed to properly inhibit auto power on in RW
- *== and RO.
- *==
- *== FIZZ, or older, always use AP_OFF as main OFF flag, at least in RO.
- *== PUFF, and newer, should always use AP_IDLE as main OFF flag.
+ *== FIZZ, and older boards, do not support AP_IDLE, and should use AP_OFF as
+ *== OFF flag. PUFF, and newer boards, have been migrated to AP_IDLE as OFF
+ *== flag, and should use AP_IDLE.
  *==========
- * #define CONFIG_AFTER_G3_STATE_USE_AP_OFF_FOR_OFF
- * #define CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF
+ * #define CONFIG_AFTER_G3_STATE_USE_AP_OFF_AS_OFF_FLAG
  *
  *==========
  *== Enables fix for bbram bug in older EC code, where presence of *any* bbram
@@ -1152,38 +1147,28 @@ static void ag3s_update_reset_flags(const char *name, uint32_t flags,
 			op_bbram, op_sys);
 }
 
-/* In newer EC code RESET_FLAG_AP_OFF could have been migrated to
- * EC_RESET_FLAG_AP_OFF, AG3S_RESET_FLAG_AP_OFF macro is a shortcut to point to
- * the existing AP_OFF flag.
- */
-#if defined(RESET_FLAG_AP_OFF)
-# define AG3S_RESET_FLAG_AP_OFF  (RESET_FLAG_AP_OFF)
-#elif defined(EC_RESET_FLAG_AP_OFF)
-# define AG3S_RESET_FLAG_AP_OFF  (EC_RESET_FLAG_AP_OFF)
-#else
-# error "Required RESET_FLAG_AP_OFF or EC_RESET_FLAG_AP_OFF is not defined"
-#endif
-
-#if defined(CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF) && \
-    !defined(EC_RESET_FLAG_AP_IDLE)
-# error "CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF is defined, but" \
-        " required EC_RESET_FLAG_AP_IDLE is not"
-#endif
-
-#if defined(EC_RESET_FLAG_AP_IDLE) && \
-    ((defined(CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF) && \
-      defined(CONFIG_AFTER_G3_STATE_USE_AP_OFF_FOR_OFF)) || \
-     ((!defined(CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF) && \
-       !defined(CONFIG_AFTER_G3_STATE_USE_AP_OFF_FOR_OFF))))
-# define AG3S_RESET_FLAG_OFF       ((AG3S_RESET_FLAG_AP_OFF) | \
-                                   (EC_RESET_FLAG_AP_IDLE))
-# define AG3S_RESET_FLAG_OFF_NAME  "AP_OFF|AP_IDLE"
-#elif defined(CONFIG_AFTER_G3_STATE_USE_AP_IDLE_FOR_OFF)
-# define AG3S_RESET_FLAG_OFF       (EC_RESET_FLAG_AP_IDLE)
-# define AG3S_RESET_FLAG_OFF_NAME  "AP_IDLE"
-#else
+/* Use AP_OFF as OFF flag if requested. */
+#if defined(CONFIG_AFTER_G3_STATE_USE_AP_OFF_AS_OFF_FLAG)
+  /* In newer EC code RESET_FLAG_AP_OFF could have been migrated to
+   * EC_RESET_FLAG_AP_OFF, AG3S_RESET_FLAG_AP_OFF macro is a shortcut to point
+   * to the existing AP_OFF flag.
+   */
+# if defined(RESET_FLAG_AP_OFF)
+#  define AG3S_RESET_FLAG_AP_OFF  (RESET_FLAG_AP_OFF)
+# elif defined(EC_RESET_FLAG_AP_OFF)
+#  define AG3S_RESET_FLAG_AP_OFF  (EC_RESET_FLAG_AP_OFF)
+# else
+#  error "CONFIG_AFTER_G3_STATE_USE_AP_OFF_AS_OFF_FLAG is defined, but" \
+         " required RESET_FLAG_AP_OFF or EC_RESET_FLAG_AP_OFF is not available"
+# endif
 # define AG3S_RESET_FLAG_OFF       (AG3S_RESET_FLAG_AP_OFF)
 # define AG3S_RESET_FLAG_OFF_NAME  "AP_OFF"
+#else /* Fallback to AP_IDLE as OFF flag if AP_OFF is not requested. */
+# if !defined(EC_RESET_FLAG_AP_IDLE)
+#  error "Required EC_RESET_FLAG_AP_IDLE is not available"
+# endif
+# define AG3S_RESET_FLAG_OFF       (EC_RESET_FLAG_AP_IDLE)
+# define AG3S_RESET_FLAG_OFF_NAME  "AP_IDLE"
 #endif
 
 static inline void ag3s_update_off_reset_flags(int rfo_flags)
