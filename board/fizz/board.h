@@ -72,8 +72,8 @@
 #define CONFIG_SCRATCHPAD_POWER_CONF_POS 24
 /* Enable After G3 State. */
 #define CONFIG_AFTER_G3_STATE
-/* RO for FIZZ only uses AP_OFF for OFF. */
-#define CONFIG_AFTER_G3_STATE_USE_AP_OFF_FOR_OFF
+/* RO for FIZZ only supports AP_OFF as OFF flag. */
+#define CONFIG_AFTER_G3_STATE_USE_AP_OFF_AS_OFF_FLAG
 /* RO for FIZZ is bugged when jumping from RW with bbram reset flags set. */
 #define CONFIG_AFTER_G3_STATE_SYSJUMP_BBRAM_BUGFIX
 /* Enable Lid Power Events overrides. */
