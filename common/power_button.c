@@ -958,16 +958,16 @@ DECLARE_CONSOLE_COMMAND(lidpowerevents, command_lid_power_events,
  *==          power before returning to RW will keep device off when power is
  *==          restored.
  *==
- *== Useless for PUFF, and newer, as these should not be affected.
+ *== Useless for PUFF, and newer boards, as these should not be affected.
  *==========
  * #define CONFIG_AFTER_G3_STATE_SYSJUMP_BBRAM_BUGFIX
  *
  *==========
- *== DEDEDE, and newer, do not pass OFF system reset flags via jump data when
- *== jumping, even if set prior to jumping. If RO is unmodified, then jumping to
- *== RO (RW->RO), while device is off, will always cause auto power on. Jump to
- *== RW (RO->RW) is not affected, since RW can restore OFF system reset flags
- *== based on checking existing OFF bbram reset flags.
+ *== DEDEDE, and newer boards, do not pass OFF system reset flags via jump data
+ *== when jumping, even if set prior to jumping. If RO is unmodified, then
+ *== jumping to RO (RW->RO), while device is off, will always cause auto power
+ *== on. Jump to RW (RO->RW) is not affected, since RW can restore OFF system
+ *== reset flags based on checking existing OFF bbram reset flags.
  *==
  *== Mitigation requires changing code for RW (only if RO is unmodified):
  *== common/system.c: int system_run_image_copy_with_flags(enum ec_image copy,
